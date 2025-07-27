@@ -1,6 +1,7 @@
 mod database;
 mod models;
 mod handlers;
+mod migration;
 
 use axum::{
     routing::get,
@@ -9,7 +10,7 @@ use axum::{
 };
 use serde_json::{json, Value};
 use std::net::SocketAddr;
-use axum::response::IntoResponse;
+use sea_orm_migration::prelude::*;
 
 async fn health_check() -> Json<Value> {
     Json(json!({
@@ -24,8 +25,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv().ok();
 
     // Test database connection
-    let _db = database::establish_connection().await?;
+    let db = database::establish_connection().await?;
     println!("✅ Database connected successfully!");
+
+    // Run migrations
+    let schema_manager = SchemaManager::new(&db);
+    migration::Migration.up(&schema_manager).await?;
+    println!("✅ Migrations completed successfully!");
 
     // Create router
     let app: Router<()> = Router::new().route("/health", get(health_check));
