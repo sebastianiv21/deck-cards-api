@@ -1,16 +1,19 @@
 mod database;
-mod models;
 mod handlers;
 mod migration;
+mod models;
 
 use axum::{
-    routing::get,
     Router,
-    response::Json
+    response::Json,
+    routing::{delete, get, post, put},
 };
-use serde_json::{json, Value};
-use std::net::SocketAddr;
+use handlers::deck_handlers;
 use sea_orm_migration::prelude::*;
+use serde_json::{Value, json};
+use std::net::SocketAddr;
+
+use crate::handlers::card_handlers;
 
 async fn health_check() -> Json<Value> {
     Json(json!({
@@ -34,7 +37,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✅ Migrations completed successfully!");
 
     // Create router
-    let app: Router<()> = Router::new().route("/health", get(health_check));
+    let app: Router<()> = Router::new()
+        .route("/health", get(health_check))
+        // Deck routes
+        .route("/decks", post(deck_handlers::create_deck))
+        .route("/decks", get(deck_handlers::get_all_decks))
+        .route("/decks/:id", get(deck_handlers::get_deck_by_id))
+        .route("/decks/:id", put(deck_handlers::update_deck_by_id))
+        .route("/decks/:id", delete(deck_handlers::delete_deck_by_id))
+        // Card routes
+        .route("/cards", post(card_handlers::create_card))
+        .route("/cards", get(card_handlers::get_all_cards))
+        .route("/cards/:id", get(card_handlers::get_card_by_id))
+        .route("/cards/:id", put(card_handlers::update_card))
+        .route("/cards/:id", delete(card_handlers::delete_card))
+        .route("/decks/:id/cards", get(card_handlers::get_cards_by_deck))
+        .with_state(db);
 
     // Start server
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
